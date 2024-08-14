@@ -1,0 +1,147 @@
+plugins {
+	id 'java'
+	id 'idea'
+	//code quality control
+	id 'pmd'
+	id 'jacoco'
+	id "name.remal.sonarlint" version "4.2.6"
+	id "com.diffplug.spotless" version "6.25.0"
+
+}
+
+group = 'com.github.ducknowledges.calories_tracker'
+version = '0.0.1-SNAPSHOT'
+compileJava.options.encoding = 'UTF-8'
+
+wrapper {
+	gradleVersion '8.9'
+}
+
+// Plugin Config
+java {
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}
+
+
+idea {
+	project {
+		languageLevel = 17
+	}
+	module {
+		downloadJavadoc = true
+		downloadSources = true
+	}
+}
+
+pmd {
+	group = 'verification'
+	consoleOutput = true
+	toolVersion = "7.4.0"
+	ruleSetFiles = files('pmd-rules.xml')
+}
+
+spotless {
+	java {
+		removeUnusedImports()
+		googleJavaFormat('1.23.0')
+		formatAnnotations()
+	}
+}
+
+
+ext {
+	versions = [
+			//Dependencies version
+	]
+}
+
+dependencies {
+}
+
+configurations.configureEach {
+	resolutionStrategy.failOnVersionConflict()
+}
+
+//Print dependencies from BOMs: Task -> other -> managedVersions
+tasks.register('managedVersions') {
+	doLast {
+		dependencyManagement.managedVersions.each {
+			print it.key + ':' + it.value + '\n'
+		}
+	}
+}
+
+//Build Project
+compileJava {
+	options.compilerArgs << '-Werror'
+	dependsOn spotlessApply
+}
+
+jar {
+	archiveFileName.set("${project.name}-${project.version}.jar")
+	dependsOn('codeQuality')
+}
+
+// Code Quality Control
+tasks.register("codeQuality") {
+	description = 'Runs code quality control.'
+	group = 'verification'
+	dependsOn sonarlintMain
+	dependsOn sonarlintTest
+	dependsOn pmdMain
+	dependsOn pmdTest
+	dependsOn test
+	dependsOn jacocoTestCoverageVerification
+}
+
+
+test {
+	description = 'Runs unit tests.'
+    useJUnitPlatform {
+        filter.includeTestsMatching('*Test')
+    }
+	failFast = true
+	maxHeapSize = '512m'
+	finalizedBy jacocoTestReport
+}
+
+check {
+	dependsOn codeQuality
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+		html.outputLocation = layout.buildDirectory.dir('jacoco')
+	}
+	dependsOn test
+}
+
+jacocoTestCoverageVerification {
+	violationRules {
+		failOnViolation = true
+		rule {
+			limit {
+				minimum = 0.80
+			}
+		}
+		rule {
+			limit {
+				element = 'METHOD'
+				counter = 'COMPLEXITY'
+				value = 'TOTALCOUNT'
+				maximum = 8
+			}
+		}
+	}
+	dependsOn jacocoTestReport
+}
+
+
+
+repositories {
+	mavenLocal()
+	mavenCentral()
+	maven { url 'https://jitpack.io' }
+}

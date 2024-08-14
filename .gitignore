@@ -7,6 +7,12 @@
 *.tar.gz
 *.rar
 
+### Gradle ###
+.gradle
+!gradle/wrapper/gradle-wrapper.jar
+**/build/
+.env
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
